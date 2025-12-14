@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { NextResponse } from 'next/server';
 
 interface GitHubUrlPayload {
   url: string;
@@ -13,25 +13,21 @@ interface RepoDetails {
   html_url: string;
 }
 
-export default async function (request: VercelRequest, response: VercelResponse) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({ detail: 'Method Not Allowed' });
-  }
-
-  const { url } = request.body as GitHubUrlPayload;
+export async function POST(request: Request) {
+  const { url } = (await request.json()) as GitHubUrlPayload;
 
   if (!url || !url.includes("github.com")) {
-    return response.status(400).json({ detail: "Invalid GitHub URL format." });
+    return NextResponse.json({ detail: "Invalid GitHub URL format." }, { status: 400 });
   }
 
   const parts = url.split("github.com/");
   if (parts.length < 2) {
-    return response.status(400).json({ detail: "Invalid GitHub URL format." });
+    return NextResponse.json({ detail: "Invalid GitHub URL format." }, { status: 400 });
   }
 
   const repoPath = parts[1].split("/");
   if (repoPath.length < 2) {
-    return response.status(400).json({ detail: "Invalid GitHub URL format (owner/repo missing)." });
+    return NextResponse.json({ detail: "Invalid GitHub URL format (owner/repo missing)." }, { status: 400 });
   }
 
   const owner = repoPath[0];
@@ -39,7 +35,7 @@ export default async function (request: VercelRequest, response: VercelResponse)
 
   const githubToken = process.env.GITHUB_TOKEN;
   if (!githubToken) {
-    return response.status(500).json({ detail: "GITHUB_TOKEN environment variable not set." });
+    return NextResponse.json({ detail: "GITHUB_TOKEN environment variable not set." }, { status: 500 });
   }
 
   const headers = {
@@ -55,12 +51,12 @@ export default async function (request: VercelRequest, response: VercelResponse)
 
     if (!apiResponse.ok) {
       if (apiResponse.status === 404) {
-        return response.status(404).json({ detail: "Repository not found." });
+        return NextResponse.json({ detail: "Repository not found." }, { status: 404 });
       }
       if (apiResponse.status === 401) {
-        return response.status(401).json({ detail: "GitHub token is invalid or expired." });
+        return NextResponse.json({ detail: "GitHub token is invalid or expired." }, { status: 401 });
       }
-      return response.status(apiResponse.status).json({ detail: `GitHub API error: ${data.message || 'Unknown error'}` });
+      return NextResponse.json({ detail: `GitHub API error: ${data.message || 'Unknown error'}` }, { status: apiResponse.status });
     }
 
     const repoDetails: RepoDetails = {
@@ -72,9 +68,9 @@ export default async function (request: VercelRequest, response: VercelResponse)
       html_url: data.html_url,
     };
 
-    return response.status(200).json(repoDetails);
+    return NextResponse.json(repoDetails, { status: 200 });
 
   } catch (error: any) {
-    return response.status(500).json({ detail: `Network error while connecting to GitHub: ${error.message || 'Unknown error'}` });
+    return NextResponse.json({ detail: `Network error while connecting to GitHub: ${error.message || 'Unknown error'}` }, { status: 500 });
   }
 }
