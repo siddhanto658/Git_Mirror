@@ -2,6 +2,10 @@
 
 GitGrade is a web application that provides an instant, AI-powered analysis of any public GitHub repository. It gives a score, a rating, a summary of the repository's health, and a personalized roadmap for improvement.
 
+## Live Demo
+
+Experience GitGrade live: [https://gitmirror-ecru.vercel.app/](https://gitmirror-ecru.vercel.app/)
+
 ## How It Works
 
 1.  **Enter a GitHub URL:** Paste the URL of a public GitHub repository.
