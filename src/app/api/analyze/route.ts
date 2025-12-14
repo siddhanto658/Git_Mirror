@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import fetch from 'node-fetch'; // Vercel's Node.js runtime includes fetch globally, but good practice for clarity
+import { NextResponse } from 'next/server';
+import fetch from 'node-fetch'; // Still needed for the `fetch` calls inside the functions
 
 // --- Interfaces for Request/Response ---
 
@@ -101,25 +101,21 @@ async function fetchCommits(owner: string, repo: string, githubToken: string): P
 
 // --- Main Serverless Function ---
 
-export default async function (request: VercelRequest, response: VercelResponse) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({ detail: 'Method Not Allowed' });
-  }
-
-  const { owner, repo } = request.body as AnalyzePayload;
+export async function POST(request: Request) {
+  const { owner, repo } = (await request.json()) as AnalyzePayload;
 
   if (!owner || !repo) {
-    return response.status(400).json({ detail: "Owner and repository name are required." });
+    return NextResponse.json({ detail: "Owner and repository name are required." }, { status: 400 });
   }
 
   const githubToken = process.env.GITHUB_TOKEN;
   if (!githubToken) {
-    return response.status(500).json({ detail: "GITHUB_TOKEN environment variable not set." });
+    return NextResponse.json({ detail: "GITHUB_TOKEN environment variable not set." }, { status: 500 });
   }
 
   const aiApiKey = process.env.AI_API_KEY; // We'll need this soon
   if (!aiApiKey) {
-    return response.status(500).json({ detail: "AI_API_KEY environment variable not set." });
+    return NextResponse.json({ detail: "AI_API_KEY environment variable not set." }, { status: 500 });
   }
 
   try {
@@ -178,10 +174,10 @@ export default async function (request: VercelRequest, response: VercelResponse)
       ],
     };
 
-    return response.status(200).json(mockAiResponse);
+    return NextResponse.json(mockAiResponse, { status: 200 });
 
   } catch (error: any) {
     console.error("Analysis API Error:", error);
-    return response.status(500).json({ detail: error.message || "An unexpected error occurred during analysis." });
+    return NextResponse.json({ detail: error.message || "An unexpected error occurred during analysis." }, { status: 500 });
   }
 }
