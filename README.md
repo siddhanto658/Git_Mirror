@@ -4,7 +4,7 @@ GitGrade is a web application that provides an instant, AI-powered analysis of a
 
 ## Live Demo
 
-Experience GitGrade live: [https://gitmirror-ecru.vercel.app/](https://gitmirror-ecru.vercel.app/)
+Experience GitGrade live: [https://github.com/siddhanto658/Git_Mirror.git]
 
 ## How It Works
 
