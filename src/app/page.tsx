@@ -7,10 +7,18 @@ import Link from "next/link"; // Import Link for navigation
 interface RepoDetails {
   name: string;
   full_name: string;
-  description: string;
+  description: string | null;
   stars: number;
   forks: number;
   html_url: string;
+}
+
+// Define types for AI Analysis Report (matching api/analyze.ts)
+interface AnalysisReport {
+  score: number;
+  rating: string; // e.g., Beginner, Intermediate, Advanced
+  summary: string;
+  roadmap: { title: string; explanation: string }[];
 }
 
 // Define the different states for our application UI
@@ -21,6 +29,7 @@ export default function Home() {
   const [appState, setAppState] = useState<AppState>("initial");
   const [error, setError] = useState<string | null>(null);
   const [repoDetails, setRepoDetails] = useState<RepoDetails | null>(null);
+  const [analysisReport, setAnalysisReport] = useState<AnalysisReport | null>(null);
 
   const handleFetch = async () => {
     // Basic URL validation
@@ -56,20 +65,38 @@ export default function Home() {
   };
 
   const handleGrade = async () => {
-    if (!repoDetails || !githubUrl) return;
+    if (!repoDetails) return;
 
     setAppState("grading");
     setError(null);
+    setAnalysisReport(null); // Clear previous report
 
-    // This is where the actual /api/analyze call will go in the future
-    console.log("Starting full analysis for:", githubUrl);
-    
-    // Simulate API call for grading
-    await new Promise(resolve => setTimeout(resolve, 3000)); 
-    
-    setAppState("results"); // For now, we'll simulate going to results
-    console.log("Simulated grading complete.");
-    // In a real scenario, you'd set the actual analysis report here.
+    try {
+      // Split owner and repo name for the analyze API
+      const full_name_parts = repoDetails.full_name.split("/");
+      const owner = full_name_parts[0];
+      const repo = full_name_parts[1];
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ owner, repo }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to analyze repository.");
+      }
+
+      const data: AnalysisReport = await response.json();
+      setAnalysisReport(data);
+      setAppState("results");
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred during analysis.");
+      setAppState("confirming"); // Go back to confirming state on error
+    }
   };
 
   const handleReset = () => {
@@ -77,6 +104,7 @@ export default function Home() {
     setAppState("initial");
     setError(null);
     setRepoDetails(null);
+    setAnalysisReport(null);
   };
 
   const renderContent = () => {
@@ -170,16 +198,53 @@ export default function Home() {
         );
       
       case "results":
+          if (!repoDetails || !analysisReport) return null;
+
           return (
-            <div className="w-full flex flex-col items-center gap-8 mt-6">
-                <h2 className="text-3xl font-bold text-teal-400">Analysis Complete!</h2>
-                <p className="text-lg text-gray-300">Here would be the full report (Score, Summary, Roadmap).</p>
-                <button
-                    onClick={handleReset}
-                    className="px-8 py-3 rounded-lg border border-gray-600 text-gray-300 font-bold text-lg hover:bg-gray-700 transition-colors duration-200"
-                >
-                    Analyze Another Repository
-                </button>
+            <div className="w-full flex flex-col gap-6 mt-6">
+              <div className="bg-gray-700 p-6 rounded-lg w-full shadow-md text-center">
+                <h2 className="text-2xl font-bold text-teal-400">
+                  <Link href={repoDetails.html_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {repoDetails.full_name}
+                  </Link>
+                </h2>
+                {repoDetails.description && (
+                  <p className="text-gray-300 mt-2">{repoDetails.description}</p>
+                )}
+                {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+              </div>
+
+              {/* Score Card */}
+              <div className="bg-gray-700 p-6 rounded-lg shadow-md flex flex-col items-center justify-center gap-4">
+                <h3 className="text-3xl font-bold text-teal-400">Score: {analysisReport.score}/100</h3>
+                <p className="text-xl text-gray-300">Rating: {analysisReport.rating}</p>
+              </div>
+
+              {/* Summary Panel */}
+              <div className="bg-gray-700 p-6 rounded-lg shadow-md">
+                <h3 className="text-2xl font-bold text-teal-400 mb-3">Summary</h3>
+                <p className="text-gray-300">{analysisReport.summary}</p>
+              </div>
+
+              {/* Roadmap Panel */}
+              <div className="bg-gray-700 p-6 rounded-lg shadow-md">
+                <h3 className="text-2xl font-bold text-teal-400 mb-3">Personalized Roadmap</h3>
+                <ul className="list-disc pl-5 text-gray-300">
+                  {analysisReport.roadmap.map((item, index) => (
+                    <li key={index} className="mb-2">
+                      <p className="font-semibold text-white">{item.title}:</p>
+                      <p className="text-sm">{item.explanation}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                onClick={handleReset}
+                className="px-8 py-3 rounded-lg border border-gray-600 text-gray-300 font-bold text-lg hover:bg-gray-700 transition-colors duration-200"
+              >
+                Analyze Another Repository
+              </button>
             </div>
           );
       default:
